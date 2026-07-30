@@ -43,6 +43,26 @@ router.get("/auth/discord", (req, res): void => {
 });
 
 router.get("/auth/discord/callback", async (req, res): Promise<void> => {
+  // Discord sends ?error=access_denied (or similar) when the redirect URI is
+  // not registered or the user cancels — surface a clear message instead of
+  // the generic "Missing code" response.
+  if (req.query.error) {
+    const desc = req.query.error_description ?? req.query.error;
+    req.log.warn({ error: req.query.error, desc }, "Discord OAuth error");
+    res
+      .status(400)
+      .send(
+        `<html><body style="font-family:sans-serif;padding:2rem">` +
+          `<h2>Discord login failed</h2>` +
+          `<p><strong>Error:</strong> ${String(desc)}</p>` +
+          `<p>Make sure this redirect URI is added to your Discord application's <em>OAuth2 → Redirects</em> list:</p>` +
+          `<code style="background:#eee;padding:.25rem .5rem">${getRedirectUri(req)}</code>` +
+          `<br><br><a href="/">← Back to login</a>` +
+          `</body></html>`,
+      );
+    return;
+  }
+
   const code = req.query.code as string | undefined;
   if (!code) {
     res.status(400).json({ error: "Missing code parameter" });

@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web", "bash"]
+modules = ["nodejs-20", "web", "bash", "postgresql-16"]
 
 [deployment]
 router = "application"
@@ -77,4 +77,3 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.shared]
-DISCORD_REDIRECT_URI = "https://901df3a8-8e16-4f3d-b632-9e8d73c8dcd3-00-1fu8zc8x0k5w8.pike.replit.dev/api/auth/discord/callback"

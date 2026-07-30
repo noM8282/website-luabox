@@ -57920,6 +57920,14 @@ router2.get("/auth/discord", (req, res) => {
   res.redirect(url2.toString());
 });
 router2.get("/auth/discord/callback", async (req, res) => {
+  if (req.query.error) {
+    const desc2 = req.query.error_description ?? req.query.error;
+    req.log.warn({ error: req.query.error, desc: desc2 }, "Discord OAuth error");
+    res.status(400).send(
+      `<html><body style="font-family:sans-serif;padding:2rem"><h2>Discord login failed</h2><p><strong>Error:</strong> ${String(desc2)}</p><p>Make sure this redirect URI is added to your Discord application's <em>OAuth2 \u2192 Redirects</em> list:</p><code style="background:#eee;padding:.25rem .5rem">${getRedirectUri(req)}</code><br><br><a href="/">\u2190 Back to login</a></body></html>`
+    );
+    return;
+  }
   const code = req.query.code;
   if (!code) {
     res.status(400).json({ error: "Missing code parameter" });
