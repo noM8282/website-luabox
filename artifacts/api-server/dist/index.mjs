@@ -29271,9 +29271,9 @@ var require_random_bytes = __commonJS({
     "use strict";
     var crypto = __require("crypto");
     var generateAttempts = crypto.randomBytes === crypto.pseudoRandomBytes ? 1 : 3;
-    module.exports = randomBytes2;
+    module.exports = randomBytes3;
     module.exports.sync = randomBytesSync;
-    function randomBytes2(size, callback) {
+    function randomBytes3(size, callback) {
       if (callback !== void 0 && typeof callback !== "function") {
         throw new TypeError("argument callback must be a function");
       }
@@ -29315,7 +29315,7 @@ var require_random_bytes = __commonJS({
 var require_uid_safe = __commonJS({
   "../../node_modules/.pnpm/uid-safe@2.1.5/node_modules/uid-safe/index.js"(exports, module) {
     "use strict";
-    var randomBytes2 = require_random_bytes();
+    var randomBytes3 = require_random_bytes();
     var EQUAL_END_REGEXP = /=+$/;
     var PLUS_GLOBAL_REGEXP = /\+/g;
     var SLASH_GLOBAL_REGEXP = /\//g;
@@ -29339,10 +29339,10 @@ var require_uid_safe = __commonJS({
       });
     }
     function uidSync(length) {
-      return toString(randomBytes2.sync(length));
+      return toString(randomBytes3.sync(length));
     }
     function generateUid(length, callback) {
-      randomBytes2(length, function(err, buf) {
+      randomBytes3(length, function(err, buf) {
         if (err) return callback(err);
         callback(null, toString(buf));
       });
@@ -31209,7 +31209,7 @@ var require_utils5 = __commonJS({
     var nodeCrypto = __require("crypto");
     module.exports = {
       postgresMd5PasswordHash,
-      randomBytes: randomBytes2,
+      randomBytes: randomBytes3,
       deriveKey,
       sha256,
       hashByName,
@@ -31219,7 +31219,7 @@ var require_utils5 = __commonJS({
     var webCrypto = nodeCrypto.webcrypto || globalThis.crypto;
     var subtleCrypto = webCrypto.subtle;
     var textEncoder = new TextEncoder();
-    function randomBytes2(length) {
+    function randomBytes3(length) {
       return webCrypto.getRandomValues(Buffer.alloc(length));
     }
     async function md5(string4) {
@@ -58052,25 +58052,90 @@ var overview_default = router3;
 
 // src/routes/scripts.ts
 var import_express4 = __toESM(require_express2(), 1);
-import { randomBytes } from "crypto";
+import { randomBytes as randomBytes2 } from "crypto";
 
 // src/lib/obfuscate.ts
+import { randomBytes } from "crypto";
+function rname(len = 10) {
+  const alpha = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const buf = randomBytes(len);
+  return "_" + Array.from(buf, (b) => alpha[b % alpha.length]).join("");
+}
 function obfuscateLua(code) {
   if (!code.trim()) return code;
-  const key = Math.floor(Math.random() * 90) + 10;
-  const bytes = Array.from(Buffer.from(code, "utf8")).map((b) => (b + key) % 256);
+  const [k1, k2, k3, k4] = Array.from(randomBytes(4)).map((b) => b % 200 + 28);
+  const raw = Array.from(Buffer.from(code, "utf8"));
+  const encoded = raw.map((b) => {
+    let v = (b + k1) % 256;
+    v = v ^ k2;
+    v = (v + k3) % 256;
+    v = v ^ k4;
+    return v;
+  });
+  const CHUNK_SIZE = 150;
+  const chunks = [];
+  for (let i = 0; i < encoded.length; i += CHUNK_SIZE) {
+    chunks.push(encoded.slice(i, i + CHUNK_SIZE));
+  }
+  function splitKey(k) {
+    const a = Math.floor(Math.random() * 20) + 5;
+    return [a, k - a];
+  }
+  const [k1a, k1b] = splitKey(k1);
+  const [k2a, k2b] = splitKey(k2);
+  const [k3a, k3b] = splitKey(k3);
+  const [k4a, k4b] = splitKey(k4);
+  const vK1 = rname();
+  const vK2 = rname();
+  const vK3 = rname();
+  const vK4 = rname();
+  const vChunks = rname();
+  const vOut = rname();
+  const vN = rname();
+  const vCh = rname();
+  const vByte = rname();
+  const vTmp = rname();
+  const vSrc = rname();
+  const vFn = rname();
+  const vErr = rname();
   const lines = [
-    `-- [[ LuaBox Protected ]] --`,
-    `local _k=${key}`,
-    `local _b={${bytes.join(",")}}`,
-    `local _s=""`,
-    `for _i=1,#_b do`,
-    `  local _v=_b[_i]-_k`,
-    `  if _v<0 then _v=_v+256 end`,
-    `  _s=_s..string.char(_v)`,
+    // Key definitions (computed, not plain literals)
+    `local ${vK1}=${k1a}+${k1b}`,
+    `local ${vK2}=${k2a}+${k2b}`,
+    `local ${vK3}=${k3a}+${k3b}`,
+    `local ${vK4}=${k4a}+${k4b}`,
+    // Byte chunks
+    `local ${vChunks}={`,
+    ...chunks.map((ch, i) => `  {${ch.join(",")}}${i < chunks.length - 1 ? "," : ""}`),
+    `}`,
+    // Decode loop: reassemble and reverse the 4-layer encoding
+    `local ${vOut}={}`,
+    `local ${vN}=0`,
+    `for _,${vCh} in ipairs(${vChunks}) do`,
+    `  for _,${vByte} in ipairs(${vCh}) do`,
+    `    ${vN}=${vN}+1`,
+    // Reverse step4: XOR k4
+    `    local ${vTmp}=bit32.bxor(${vByte},${vK4})`,
+    // Reverse step3: subtract k3 mod 256
+    `    ${vTmp}=(${vTmp}-${vK3})%256`,
+    // Reverse step2: XOR k2
+    `    ${vTmp}=bit32.bxor(${vTmp},${vK2})`,
+    // Reverse step1: subtract k1 mod 256
+    `    ${vTmp}=(${vTmp}-${vK1})%256`,
+    `    ${vOut}[${vN}]=string.char(${vTmp})`,
+    `  end`,
     `end`,
-    `local _f,_e=loadstring(_s)`,
-    `if _f then return _f() else error(_e) end`
+    // Wipe keys from memory (anti-dump: keys gone before execution)
+    `${vK1},${vK2},${vK3},${vK4}=nil,nil,nil,nil`,
+    // Build source string then wipe the char table
+    `local ${vSrc}=table.concat(${vOut})`,
+    `for _i=1,${vN} do ${vOut}[_i]=nil end`,
+    `${vOut},${vN},${vChunks}=nil,nil,nil`,
+    // Compile
+    `local ${vFn},${vErr}=loadstring(${vSrc})`,
+    // Anti-dump: wipe source string before the function runs
+    `${vSrc}=nil`,
+    `if ${vFn} then return ${vFn}() else error(${vErr},2) end`
   ];
   return lines.join("\n");
 }
@@ -58082,7 +58147,7 @@ function parseId(raw) {
 }
 function generateLoaderId() {
   const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  const bytes = randomBytes(25);
+  const bytes = randomBytes2(25);
   return Array.from(bytes, (b) => chars[b % chars.length]).join("");
 }
 function formatScript(s) {
@@ -58752,10 +58817,6 @@ router10.get("/public/loaders/:loaderId/lua", async (req, res) => {
       res.status(403).type("text/plain").send('error("[LuaBox] This script is currently disabled.", 2)');
       return;
     }
-    if (!script.obfuscatedContent) {
-      res.status(503).type("text/plain").send('error("[LuaBox] Script content not available.", 2)');
-      return;
-    }
     const [license] = await db.select().from(licensesTable).where(and(eq(licensesTable.key, key), eq(licensesTable.scriptId, script.id))).limit(1);
     if (!license || license.status !== "active") {
       res.status(403).type("text/plain").send('error("[LuaBox] Invalid or inactive key.", 2)');
@@ -58765,7 +58826,16 @@ router10.get("/public/loaders/:loaderId/lua", async (req, res) => {
       res.status(403).type("text/plain").send('error("[LuaBox] Key has expired.", 2)');
       return;
     }
-    res.type("text/plain").send(script.obfuscatedContent);
+    let obfContent = script.obfuscatedContent;
+    if (!obfContent) {
+      if (!script.content) {
+        res.status(503).type("text/plain").send('error("[LuaBox] Script has no content yet. Add Lua code in your dashboard.", 2)');
+        return;
+      }
+      obfContent = obfuscateLua(script.content);
+      await db.update(scriptsTable).set({ obfuscatedContent: obfContent }).where(eq(scriptsTable.id, script.id));
+    }
+    res.type("text/plain").send(obfContent);
   } catch (err) {
     logger.error({ err }, "Loader lua error");
     res.status(500).type("text/plain").send('error("[LuaBox] Internal server error.", 2)');
@@ -58788,10 +58858,6 @@ router10.post("/public/loaders/:loaderId/execute", async (req, res) => {
       res.status(403).json({ error: "Script is disabled." });
       return;
     }
-    if (!script.obfuscatedContent) {
-      res.status(503).json({ error: "Script content not available." });
-      return;
-    }
     const [license] = await db.select().from(licensesTable).where(and(eq(licensesTable.key, key), eq(licensesTable.scriptId, script.id))).limit(1);
     if (!license) {
       res.status(403).json({ error: "Invalid key." });
@@ -58805,7 +58871,16 @@ router10.post("/public/loaders/:loaderId/execute", async (req, res) => {
       res.status(403).json({ error: "Key has expired." });
       return;
     }
-    res.type("text/plain").send(script.obfuscatedContent);
+    let obfContent = script.obfuscatedContent;
+    if (!obfContent) {
+      if (!script.content) {
+        res.status(503).json({ error: "Script has no content yet." });
+        return;
+      }
+      obfContent = obfuscateLua(script.content);
+      await db.update(scriptsTable).set({ obfuscatedContent: obfContent }).where(eq(scriptsTable.id, script.id));
+    }
+    res.type("text/plain").send(obfContent);
   } catch (err) {
     logger.error({ err }, "Loader execute error");
     res.status(500).json({ error: "Internal server error." });

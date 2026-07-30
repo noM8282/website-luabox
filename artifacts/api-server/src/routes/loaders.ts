@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, scriptsTable, licensesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { obfuscateLua } from "../lib/obfuscate";
 
 const router = Router();
 
@@ -65,11 +66,6 @@ router.get("/public/loaders/:loaderId/lua", async (req, res): Promise<void> => {
       return;
     }
 
-    if (!script.obfuscatedContent) {
-      res.status(503).type("text/plain").send('error("[LuaBox] Script content not available.", 2)');
-      return;
-    }
-
     // ── Validate key ───────────────────────────────────────────────────────
     const [license] = await db
       .select()
@@ -87,8 +83,23 @@ router.get("/public/loaders/:loaderId/lua", async (req, res): Promise<void> => {
       return;
     }
 
+    // ── Resolve obfuscated content (regenerate if missing) ─────────────────
+    let obfContent = script.obfuscatedContent;
+    if (!obfContent) {
+      if (!script.content) {
+        res.status(503).type("text/plain").send('error("[LuaBox] Script has no content yet. Add Lua code in your dashboard.", 2)');
+        return;
+      }
+      obfContent = obfuscateLua(script.content);
+      // Persist so next request is instant
+      await db
+        .update(scriptsTable)
+        .set({ obfuscatedContent: obfContent })
+        .where(eq(scriptsTable.id, script.id));
+    }
+
     // ── Valid — return obfuscated Lua source ───────────────────────────────
-    res.type("text/plain").send(script.obfuscatedContent);
+    res.type("text/plain").send(obfContent);
   } catch (err) {
     logger.error({ err }, "Loader lua error");
     res.status(500).type("text/plain").send('error("[LuaBox] Internal server error.", 2)');
@@ -125,11 +136,6 @@ router.post("/public/loaders/:loaderId/execute", async (req, res): Promise<void>
       return;
     }
 
-    if (!script.obfuscatedContent) {
-      res.status(503).json({ error: "Script content not available." });
-      return;
-    }
-
     const [license] = await db
       .select()
       .from(licensesTable)
@@ -151,8 +157,22 @@ router.post("/public/loaders/:loaderId/execute", async (req, res): Promise<void>
       return;
     }
 
+    // Resolve obfuscated content (regenerate if missing)
+    let obfContent = script.obfuscatedContent;
+    if (!obfContent) {
+      if (!script.content) {
+        res.status(503).json({ error: "Script has no content yet." });
+        return;
+      }
+      obfContent = obfuscateLua(script.content);
+      await db
+        .update(scriptsTable)
+        .set({ obfuscatedContent: obfContent })
+        .where(eq(scriptsTable.id, script.id));
+    }
+
     // Valid — return the obfuscated Lua content
-    res.type("text/plain").send(script.obfuscatedContent);
+    res.type("text/plain").send(obfContent);
   } catch (err) {
     logger.error({ err }, "Loader execute error");
     res.status(500).json({ error: "Internal server error." });
