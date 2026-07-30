@@ -11,8 +11,15 @@ const DISCORD_API = "https://discord.com/api/v10";
 const DISCORD_SCOPES = "identify guilds";
 
 function getRedirectUri(req: { headers: { host?: string } }): string {
-  if (process.env.DISCORD_REDIRECT_URI) {
-    return process.env.DISCORD_REDIRECT_URI;
+  const envVal = process.env.DISCORD_REDIRECT_URI;
+  if (envVal) {
+    // Validate it's actually a well-formed URL before trusting it
+    try {
+      new URL(envVal);
+      return envVal;
+    } catch {
+      // Fall through to auto-derivation — env value is not a valid URL
+    }
   }
   const domain = process.env.REPLIT_DEV_DOMAIN;
   if (domain) {

@@ -28148,7 +28148,23 @@ ${"\u2500".repeat(34)}
 ${codeBlock}
 \`\`\``
       ).setColor(5793266).setFooter({ text: "LuaBox \u2022 Script Management" }).setTimestamp();
-      await interaction.editReply({ embeds: [embed] });
+      const copyRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(`copy_script:${panelId}`).setLabel("\u{1F4CB} Copy (Mobile)").setStyle(ButtonStyle.Secondary)
+      );
+      await interaction.editReply({ embeds: [embed], components: [copyRow] });
+      return;
+    }
+    if (action === "copy_script") {
+      if (!script?.loaderId) {
+        await interaction.editReply({ content: "\u274C This script has no loader attached yet." });
+        return;
+      }
+      const domain2 = process.env.REPLIT_DEV_DOMAIN ?? "localhost";
+      const loaderUrl = `https://${domain2}/api/public/loaders/${script.loaderId}/lua?k=${license.key}`;
+      const shift = Math.floor(Math.random() * 60) + 30;
+      const encoded = Array.from(loaderUrl).map((c) => c.charCodeAt(0) + shift).join(",");
+      const codeBlock = `local _k,_d,_s=${shift},{${encoded}},"";for _i=1,#_d do _s=_s..string.char(_d[_i]-_k)end;loadstring(game:HttpGet(_s))()`;
+      await interaction.editReply({ content: codeBlock });
       return;
     }
     if (action === "stats") {

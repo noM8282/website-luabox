@@ -57897,8 +57897,13 @@ var router2 = (0, import_express2.Router)();
 var DISCORD_API = "https://discord.com/api/v10";
 var DISCORD_SCOPES = "identify guilds";
 function getRedirectUri(req) {
-  if (process.env.DISCORD_REDIRECT_URI) {
-    return process.env.DISCORD_REDIRECT_URI;
+  const envVal = process.env.DISCORD_REDIRECT_URI;
+  if (envVal) {
+    try {
+      new URL(envVal);
+      return envVal;
+    } catch {
+    }
   }
   const domain2 = process.env.REPLIT_DEV_DOMAIN;
   if (domain2) {
