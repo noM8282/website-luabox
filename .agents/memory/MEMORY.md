@@ -1,0 +1,2 @@
+- [DB schema push required on fresh import](db-push-on-import.md) — Drizzle schema must be pushed after each fresh import; tables don't exist until `pnpm --filter @workspace/db run push` runs. The `sessions` table (connect-pg-simple) must be in the Drizzle schema (`lib/db/src/schema/sessions.ts`) or it won't be created by the push.
+- [API server CWD and event-loop exit](api-server-cwd-fix.md) — dashboardDir must use __dirname-relative path, not process.cwd(); wrong CWD causes event loop to drain and silent exit-0.

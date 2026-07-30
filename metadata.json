@@ -1,0 +1,8 @@
+{
+  "name": "LuaBox Dashboard",
+  "description": "The professional control panel for Lua script developers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
