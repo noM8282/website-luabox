@@ -27835,6 +27835,45 @@ async function handlePanelDelete(interaction) {
     ephemeral: true
   });
 }
+async function sendWhitelistAnnouncement(opts) {
+  const { user, scriptName, panel, expiresAt, autoKey } = opts;
+  const panelLink = panel.discordServerId && panel.channelId && panel.messageId ? `https://discord.com/channels/${panel.discordServerId}/${panel.channelId}/${panel.messageId}` : null;
+  const expiryValue = expiresAt ? `<t:${Math.floor(expiresAt.getTime() / 1e3)}:R>` : "\u267E\uFE0F Lifetime";
+  const embed = new EmbedBuilder().setColor(5763719).setTitle("\u2705  You have been whitelisted!").setDescription(
+    `Hey <@${user.id}>! You now have access to **${scriptName}**.
+` + (panelLink ? `
+Head over to the panel and click **Get Script** to grab your loader.` : `
+Use the panel in this server to grab your script.`)
+  ).setThumbnail(user.displayAvatarURL()).addFields({ name: "\u23F3  Access", value: expiryValue, inline: true }).setFooter({ text: "LuaBox  \u2022  Script Management" }).setTimestamp();
+  if (autoKey) {
+    embed.addFields({ name: "\u{1F511}  Your Key", value: `\`${autoKey}\``, inline: true });
+  }
+  if (panelLink) {
+    embed.addFields({
+      name: "\u{1F3AE}  Get Your Script",
+      value: `[Open panel \u2192](${panelLink})`,
+      inline: false
+    });
+  }
+  if (panel.channelId) {
+    try {
+      const ch = await client.channels.fetch(panel.channelId);
+      if (ch && ch.isTextBased()) {
+        await ch.send({
+          content: `<@${user.id}>`,
+          embeds: [embed]
+        });
+        return;
+      }
+    } catch {
+    }
+  }
+  try {
+    const dmUser = await client.users.fetch(user.id);
+    await dmUser.send({ embeds: [embed] });
+  } catch {
+  }
+}
 async function handleWhitelistAdd(interaction) {
   const panelId = interaction.options.getInteger("panel_id", true);
   const user = interaction.options.getUser("user", true);
@@ -27891,10 +27930,21 @@ async function handleWhitelistAdd(interaction) {
     } catch {
     }
   }
-  try {
-    await user.send(`@ANTI BAT BUYER You have been whitelisted!`);
-  } catch {
-  }
+  await sendWhitelistAnnouncement({
+    user: {
+      id: user.id,
+      username: user.username,
+      displayAvatarURL: () => user.displayAvatarURL({ size: 64 })
+    },
+    scriptName: script.name,
+    panel: {
+      channelId: panel.channelId ?? null,
+      messageId: panel.messageId ?? null,
+      discordServerId: panel.discordServerId ?? null
+    },
+    expiresAt,
+    autoKey
+  });
   const expiryNote = expiresAt ? ` Expires <t:${Math.floor(expiresAt.getTime() / 1e3)}:R>.` : " (Lifetime)";
   await interaction.reply({
     content: `\u2705 ${user.username} whitelisted to **${panel.name}**.${expiryNote}${autoKey ? ` Key \`${autoKey}\` auto-generated & redeemed \u2014 they can click **Get Script** now.` : " (Key already existed.)"}`,

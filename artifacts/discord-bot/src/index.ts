@@ -524,6 +524,84 @@ async function handlePanelDelete(interaction: ChatInputCommandInteraction) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Whitelist announcement helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends a polished whitelist notification to the panel's Discord channel.
+ * Falls back to a DM if the channel is unreachable or not configured.
+ */
+async function sendWhitelistAnnouncement(opts: {
+  user: { id: string; username: string; displayAvatarURL: () => string };
+  scriptName: string;
+  panel: { channelId: string | null; messageId: string | null; discordServerId: string | null };
+  expiresAt: Date | null;
+  autoKey: string | null;
+}) {
+  const { user, scriptName, panel, expiresAt, autoKey } = opts;
+
+  // Build jump link to the panel message (where they click "Get Script")
+  const panelLink =
+    panel.discordServerId && panel.channelId && panel.messageId
+      ? `https://discord.com/channels/${panel.discordServerId}/${panel.channelId}/${panel.messageId}`
+      : null;
+
+  const expiryValue = expiresAt
+    ? `<t:${Math.floor(expiresAt.getTime() / 1000)}:R>`
+    : "♾️ Lifetime";
+
+  const embed = new EmbedBuilder()
+    .setColor(0x57f287) // green
+    .setTitle("✅  You have been whitelisted!")
+    .setDescription(
+      `Hey <@${user.id}>! You now have access to **${scriptName}**.\n` +
+        (panelLink
+          ? `\nHead over to the panel and click **Get Script** to grab your loader.`
+          : `\nUse the panel in this server to grab your script.`),
+    )
+    .setThumbnail(user.displayAvatarURL())
+    .addFields({ name: "⏳  Access", value: expiryValue, inline: true })
+    .setFooter({ text: "LuaBox  •  Script Management" })
+    .setTimestamp();
+
+  if (autoKey) {
+    embed.addFields({ name: "🔑  Your Key", value: `\`${autoKey}\``, inline: true });
+  }
+
+  if (panelLink) {
+    embed.addFields({
+      name: "🎮  Get Your Script",
+      value: `[Open panel →](${panelLink})`,
+      inline: false,
+    });
+  }
+
+  // Try to send to the panel channel first
+  if (panel.channelId) {
+    try {
+      const ch = await client.channels.fetch(panel.channelId);
+      if (ch && ch.isTextBased()) {
+        await (ch as import("discord.js").TextChannel).send({
+          content: `<@${user.id}>`,
+          embeds: [embed],
+        });
+        return; // success — no DM needed
+      }
+    } catch {
+      // Channel unreachable — fall through to DM
+    }
+  }
+
+  // Fallback: DM the user
+  try {
+    const dmUser = await client.users.fetch(user.id);
+    await dmUser.send({ embeds: [embed] });
+  } catch {
+    // DMs disabled — silently ignore
+  }
+}
+
 async function handleWhitelistAdd(interaction: ChatInputCommandInteraction) {
   const panelId = interaction.options.getInteger("panel_id", true);
   const user = interaction.options.getUser("user", true);
@@ -605,12 +683,22 @@ async function handleWhitelistAdd(interaction: ChatInputCommandInteraction) {
     }
   }
 
-  // DM the whitelisted user
-  try {
-    await user.send(`@ANTI BAT BUYER You have been whitelisted!`);
-  } catch {
-    // DMs disabled — silently ignore
-  }
+  // Send whitelist announcement to the panel channel (or DM as fallback)
+  await sendWhitelistAnnouncement({
+    user: {
+      id: user.id,
+      username: user.username,
+      displayAvatarURL: () => user.displayAvatarURL({ size: 64 }),
+    },
+    scriptName: script.name,
+    panel: {
+      channelId: panel.channelId ?? null,
+      messageId: panel.messageId ?? null,
+      discordServerId: panel.discordServerId ?? null,
+    },
+    expiresAt,
+    autoKey,
+  });
 
   const expiryNote = expiresAt
     ? ` Expires <t:${Math.floor(expiresAt.getTime() / 1000)}:R>.`
