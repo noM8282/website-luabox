@@ -27893,34 +27893,23 @@ async function handleWhitelistAdd(interaction) {
   }
   const panelLink = panel.discordServerId && panel.channelId && panel.messageId ? `https://discord.com/channels/${panel.discordServerId}/${panel.channelId}/${panel.messageId}` : null;
   const expiryValue = expiresAt ? `<t:${Math.floor(expiresAt.getTime() / 1e3)}:R>` : "\u267E\uFE0F Lifetime";
-  const wlEmbed = new EmbedBuilder().setColor(5763719).setTitle("\u2705  You have been whitelisted!").setDescription(
-    `Hey <@${user.id}>! You now have access to **${script.name}**.
-` + (panelLink ? `
-Head over to the panel and click **Get Script** to grab your loader.` : `
-Use the panel in this server to grab your script.`)
-  ).setThumbnail(user.displayAvatarURL({ size: 64 })).addFields({ name: "\u23F3  Access", value: expiryValue, inline: true }).setFooter({ text: "LuaBox  \u2022  Script Management" }).setTimestamp();
-  if (autoKey) {
-    wlEmbed.addFields({ name: "\u{1F511}  Your Key", value: `\`${autoKey}\``, inline: true });
-  }
-  if (panelLink) {
-    wlEmbed.addFields({ name: "\u{1F3AE}  Get Your Script", value: `[Open panel \u2192](${panelLink})`, inline: false });
-  }
+  const channelMention = panel.channelId ? `<#${panel.channelId}>` : "the panel";
+  const announcementText = `<@${user.id}> You have been whitelisted!
+You can access the script via this message --> ${channelMention}`;
   await interaction.reply({
-    content: `<@${user.id}>`,
-    embeds: [wlEmbed],
-    ephemeral: false
+    content: `\u2705 <@${user.id}> has been whitelisted for **${script.name}**.`,
+    ephemeral: true
   });
-  if (panel.channelId && panel.channelId !== interaction.channelId) {
-    try {
-      const ch = await client.channels.fetch(panel.channelId);
-      if (ch && ch.isTextBased()) {
-        await ch.send({
-          content: `<@${user.id}>`,
-          embeds: [wlEmbed]
-        });
-      }
-    } catch {
+  const targetChannelId = panel.channelId ?? interaction.channelId;
+  try {
+    const ch = await client.channels.fetch(targetChannelId);
+    if (ch && ch.isTextBased()) {
+      await ch.send({
+        content: announcementText,
+        allowedMentions: { users: [user.id] }
+      });
     }
+  } catch {
   }
 }
 async function handleWhitelistRemove(interaction) {
@@ -28148,7 +28137,9 @@ async function handleButtonInteraction(interaction) {
       }
       const domain2 = process.env.REPLIT_DEV_DOMAIN ?? "localhost";
       const loaderUrl = `https://${domain2}/api/public/loaders/${script.loaderId}/lua?k=${license.key}`;
-      const codeBlock = `loadstring(game:HttpGet("${loaderUrl}"))()`;
+      const shift = Math.floor(Math.random() * 60) + 30;
+      const encoded = Array.from(loaderUrl).map((c) => c.charCodeAt(0) + shift).join(",");
+      const codeBlock = `local _k,_d,_s=${shift},{${encoded}},"";for _i=1,#_d do _s=_s..string.char(_d[_i]-_k)end;loadstring(game:HttpGet(_s))()`;
       const embed = new EmbedBuilder().setTitle("\u{1F4DC} Your Script").setDescription(
         `Paste this into your executor. **Keep it private \u2014
 do not share it.**
@@ -28156,7 +28147,7 @@ ${"\u2500".repeat(34)}
 \`\`\`lua
 ${codeBlock}
 \`\`\``
-      ).setColor(5793266).setFooter({ text: "Faulmor \u2022 Script Management" }).setTimestamp();
+      ).setColor(5793266).setFooter({ text: "LuaBox \u2022 Script Management" }).setTimestamp();
       await interaction.editReply({ embeds: [embed] });
       return;
     }

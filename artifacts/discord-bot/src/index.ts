@@ -551,31 +551,10 @@ async function sendWhitelistAnnouncement(opts: {
     ? `<t:${Math.floor(expiresAt.getTime() / 1000)}:R>`
     : "♾️ Lifetime";
 
-  const embed = new EmbedBuilder()
-    .setColor(0x57f287) // green
-    .setTitle("✅  You have been whitelisted!")
-    .setDescription(
-      `Hey <@${user.id}>! You now have access to **${scriptName}**.\n` +
-        (panelLink
-          ? `\nHead over to the panel and click **Get Script** to grab your loader.`
-          : `\nUse the panel in this server to grab your script.`),
-    )
-    .setThumbnail(user.displayAvatarURL())
-    .addFields({ name: "⏳  Access", value: expiryValue, inline: true })
-    .setFooter({ text: "LuaBox  •  Script Management" })
-    .setTimestamp();
-
-  if (autoKey) {
-    embed.addFields({ name: "🔑  Your Key", value: `\`${autoKey}\``, inline: true });
-  }
-
-  if (panelLink) {
-    embed.addFields({
-      name: "🎮  Get Your Script",
-      value: `[Open panel →](${panelLink})`,
-      inline: false,
-    });
-  }
+  const channelMention = panel.channelId ? `<#${panel.channelId}>` : "the panel";
+  const announcementText =
+    `<@${user.id}> You have been whitelisted!\n` +
+    `You can access the script via this message --> ${channelMention}`;
 
   // Try to send to the panel channel first
   if (panel.channelId) {
@@ -583,8 +562,8 @@ async function sendWhitelistAnnouncement(opts: {
       const ch = await client.channels.fetch(panel.channelId);
       if (ch && ch.isTextBased()) {
         await (ch as import("discord.js").TextChannel).send({
-          content: `<@${user.id}>`,
-          embeds: [embed],
+          content: announcementText,
+          allowedMentions: { users: [user.id] },
         });
         return; // success — no DM needed
       }
@@ -596,7 +575,7 @@ async function sendWhitelistAnnouncement(opts: {
   // Fallback: DM the user
   try {
     const dmUser = await client.users.fetch(user.id);
-    await dmUser.send({ embeds: [embed] });
+    await dmUser.send({ content: announcementText });
   } catch {
     // DMs disabled — silently ignore
   }
@@ -693,47 +672,29 @@ async function handleWhitelistAdd(interaction: ChatInputCommandInteraction) {
     ? `<t:${Math.floor(expiresAt.getTime() / 1000)}:R>`
     : "♾️ Lifetime";
 
-  const wlEmbed = new EmbedBuilder()
-    .setColor(0x57f287)
-    .setTitle("✅  You have been whitelisted!")
-    .setDescription(
-      `Hey <@${user.id}>! You now have access to **${script.name}**.\n` +
-        (panelLink
-          ? `\nHead over to the panel and click **Get Script** to grab your loader.`
-          : `\nUse the panel in this server to grab your script.`),
-    )
-    .setThumbnail(user.displayAvatarURL({ size: 64 }))
-    .addFields({ name: "⏳  Access", value: expiryValue, inline: true })
-    .setFooter({ text: "LuaBox  •  Script Management" })
-    .setTimestamp();
+  const channelMention = panel.channelId ? `<#${panel.channelId}>` : "the panel";
+  const announcementText =
+    `<@${user.id}> You have been whitelisted!\n` +
+    `You can access the script via this message --> ${channelMention}`;
 
-  if (autoKey) {
-    wlEmbed.addFields({ name: "🔑  Your Key", value: `\`${autoKey}\``, inline: true });
-  }
-  if (panelLink) {
-    wlEmbed.addFields({ name: "🎮  Get Your Script", value: `[Open panel →](${panelLink})`, inline: false });
-  }
-
-  // Non-ephemeral reply — everyone in this channel sees the announcement
+  // Ephemeral confirmation to the admin who ran the command
   await interaction.reply({
-    content: `<@${user.id}>`,
-    embeds: [wlEmbed],
-    ephemeral: false,
+    content: `✅ <@${user.id}> has been whitelisted for **${script.name}**.`,
+    ephemeral: true,
   });
 
-  // Also send to the panel channel if it's a different channel
-  if (panel.channelId && panel.channelId !== interaction.channelId) {
-    try {
-      const ch = await client.channels.fetch(panel.channelId);
-      if (ch && ch.isTextBased()) {
-        await (ch as import("discord.js").TextChannel).send({
-          content: `<@${user.id}>`,
-          embeds: [wlEmbed],
-        });
-      }
-    } catch {
-      // Channel unreachable — the interaction reply already notified everyone
+  // Public announcement — post to the panel channel (or the current channel as fallback)
+  const targetChannelId = panel.channelId ?? interaction.channelId;
+  try {
+    const ch = await client.channels.fetch(targetChannelId);
+    if (ch && ch.isTextBased()) {
+      await (ch as import("discord.js").TextChannel).send({
+        content: announcementText,
+        allowedMentions: { users: [user.id] },
+      });
     }
+  } catch {
+    // Channel unreachable — silently ignore
   }
 }
 
@@ -1116,7 +1077,16 @@ async function handleButtonInteraction(interaction: ButtonInteraction) {
 
       const domain = process.env.REPLIT_DEV_DOMAIN ?? "localhost";
       const loaderUrl = `https://${domain}/api/public/loaders/${script.loaderId}/lua?k=${license.key}`;
-      const codeBlock = `loadstring(game:HttpGet("${loaderUrl}"))()`;
+
+      // Obfuscate: encode URL as a shifted char-code array, decoded at runtime in Lua
+      const shift = (Math.floor(Math.random() * 60) + 30); // 30–89, stays in printable ASCII range
+      const encoded = Array.from(loaderUrl)
+        .map((c) => c.charCodeAt(0) + shift)
+        .join(",");
+      const codeBlock =
+        `local _k,_d,_s=${shift},{${encoded}},""` +
+        `;for _i=1,#_d do _s=_s..string.char(_d[_i]-_k)end` +
+        `;loadstring(game:HttpGet(_s))()`;
 
       const embed = new EmbedBuilder()
         .setTitle("📜 Your Script")
@@ -1124,7 +1094,7 @@ async function handleButtonInteraction(interaction: ButtonInteraction) {
           `Paste this into your executor. **Keep it private —\ndo not share it.**\n${"─".repeat(34)}\n\`\`\`lua\n${codeBlock}\n\`\`\``,
         )
         .setColor(0x5865f2)
-        .setFooter({ text: "Faulmor • Script Management" })
+        .setFooter({ text: "LuaBox • Script Management" })
         .setTimestamp();
 
       await interaction.editReply({ embeds: [embed] });
