@@ -15,14 +15,20 @@ function getBaseUrl(req: { protocol: string; headers: { host?: string } }): stri
 }
 
 /**
- * Build the two-line loader snippet shown to the user in the dashboard.
- * Format:
- *   script_key="KEY";
- *
- *   loadstring(game:HttpGet("BASE/api/public/loaders/LOADER_ID/lua?key=KEY"))()
+ * Build the loader snippet shown in the dashboard.
+ * Uses the POST /execute endpoint so HWID is captured on first run and
+ * verified on every subsequent run — no key works on a second machine.
  */
 export function buildLoaderSnippet(loaderUrl: string, key: string): string {
-  return `script_key="${key}";\n\nloadstring(game:HttpGet("${loaderUrl}?key=${key}"))()`;
+  // Strip the /lua path if present — execute is at the same base
+  const base = loaderUrl.replace(/\/lua$/, "");
+  return (
+    `local _hs=game:GetService("HttpService")\n` +
+    `local _r=_hs:RequestAsync({Url="${base}/execute",Method="POST",` +
+    `Headers={["Content-Type"]="application/json"},` +
+    `Body=_hs:JSONEncode({key="${key}",hwid=game:GetService("RbxAnalyticsService"):GetClientId()})})\n` +
+    `if _r.Success then loadstring(_r.Body)() else error("[LuaBox] ".._r.Body,2) end`
+  );
 }
 
 /**
@@ -115,9 +121,12 @@ router.post("/public/loaders/:loaderId/execute", async (req, res): Promise<void>
 
   const key = typeof req.body?.key === "string" ? req.body.key.trim() : "";
   if (!key) {
-    res.status(400).json({ error: "Missing or invalid key." });
+    res.status(400).type("text/plain").send('error("[LuaBox] Missing key.",2)');
     return;
   }
+
+  // HWID is optional — if provided, it is bound on first use and verified thereafter
+  const hwid = typeof req.body?.hwid === "string" ? req.body.hwid.trim() || null : null;
 
   try {
     const [script] = await db
@@ -127,12 +136,12 @@ router.post("/public/loaders/:loaderId/execute", async (req, res): Promise<void>
       .limit(1);
 
     if (!script) {
-      res.status(404).json({ error: "Loader not found." });
+      res.status(404).type("text/plain").send('error("[LuaBox] Loader not found.",2)');
       return;
     }
 
     if (script.status !== "active") {
-      res.status(403).json({ error: "Script is disabled." });
+      res.status(403).type("text/plain").send('error("[LuaBox] This script is currently disabled.",2)');
       return;
     }
 
@@ -143,25 +152,43 @@ router.post("/public/loaders/:loaderId/execute", async (req, res): Promise<void>
       .limit(1);
 
     if (!license) {
-      res.status(403).json({ error: "Invalid key." });
+      res.status(403).type("text/plain").send('error("[LuaBox] Invalid or inactive key.",2)');
       return;
     }
 
     if (license.status !== "active") {
-      res.status(403).json({ error: "Key is revoked or inactive." });
+      res.status(403).type("text/plain").send('error("[LuaBox] Key is revoked or inactive.",2)');
       return;
     }
 
     if (license.expiresAt && license.expiresAt <= new Date()) {
-      res.status(403).json({ error: "Key has expired." });
+      res.status(403).type("text/plain").send('error("[LuaBox] Key has expired.",2)');
       return;
     }
 
-    // Resolve obfuscated content (regenerate if missing)
+    // ── HWID verification ──────────────────────────────────────────────────
+    if (hwid) {
+      if (!license.hwid) {
+        // First execution — bind this machine
+        await db
+          .update(licensesTable)
+          .set({ hwid })
+          .where(eq(licensesTable.id, license.id));
+      } else if (license.hwid !== hwid) {
+        // Wrong machine
+        res
+          .status(403)
+          .type("text/plain")
+          .send('error("[LuaBox] HWID mismatch. Ask the script owner to reset your HWID.",2)');
+        return;
+      }
+    }
+
+    // ── Resolve obfuscated content ─────────────────────────────────────────
     let obfContent = script.obfuscatedContent;
     if (!obfContent) {
       if (!script.content) {
-        res.status(503).json({ error: "Script has no content yet." });
+        res.status(503).type("text/plain").send('error("[LuaBox] Script has no content yet.",2)');
         return;
       }
       obfContent = obfuscateLua(script.content);
@@ -171,11 +198,10 @@ router.post("/public/loaders/:loaderId/execute", async (req, res): Promise<void>
         .where(eq(scriptsTable.id, script.id));
     }
 
-    // Valid — return the obfuscated Lua content
     res.type("text/plain").send(obfContent);
   } catch (err) {
     logger.error({ err }, "Loader execute error");
-    res.status(500).json({ error: "Internal server error." });
+    res.status(500).type("text/plain").send('error("[LuaBox] Internal server error.",2)');
   }
 });
 

@@ -57544,7 +57544,7 @@ var HealthCheckResponse = objectType({
   "status": stringType()
 });
 var GetMeResponse = objectType({
-  "id": numberType(),
+  "id": numberType().int(),
   "discordId": stringType(),
   "username": stringType(),
   "avatar": stringType().nullish(),
@@ -57554,11 +57554,11 @@ var LogoutResponse = objectType({
   "success": booleanType()
 });
 var GetOverviewStatsResponse = objectType({
-  "totalScripts": numberType(),
-  "totalPanels": numberType(),
-  "totalKeys": numberType(),
-  "activeUsers": numberType(),
-  "connectedServers": numberType()
+  "totalScripts": numberType().int(),
+  "totalPanels": numberType().int(),
+  "totalKeys": numberType().int(),
+  "activeUsers": numberType().int(),
+  "connectedServers": numberType().int()
 });
 var GetBotInviteResponse = objectType({
   "url": stringType()
@@ -57578,19 +57578,18 @@ var ListGuildChannelsResponseItem = objectType({
 });
 var ListGuildChannelsResponse = arrayType(ListGuildChannelsResponseItem);
 var SyncServersResponse = objectType({
-  "synced": numberType(),
-  "total": numberType()
+  "synced": numberType().int(),
+  "total": numberType().int()
 });
 var ListScriptsResponseItem = objectType({
-  "id": numberType(),
-  "ownerId": numberType(),
+  "id": numberType().int(),
+  "ownerId": numberType().int(),
   "name": stringType(),
   "description": stringType().nullish(),
   "version": stringType(),
   "status": enumType(["active", "disabled"]),
   "content": stringType().nullish(),
   "obfuscatedContent": stringType().nullish(),
-  "loaderId": stringType().nullish(),
   "createdAt": stringType()
 });
 var ListScriptsResponse = arrayType(ListScriptsResponseItem);
@@ -57601,34 +57600,32 @@ var CreateScriptBody = objectType({
   "content": stringType().optional()
 });
 var CreateScriptResponse = objectType({
-  "id": numberType(),
-  "ownerId": numberType(),
+  "id": numberType().int(),
+  "ownerId": numberType().int(),
   "name": stringType(),
   "description": stringType().nullish(),
   "version": stringType(),
   "status": enumType(["active", "disabled"]),
   "content": stringType().nullish(),
   "obfuscatedContent": stringType().nullish(),
-  "loaderId": stringType().nullish(),
   "createdAt": stringType()
 });
 var GetScriptParams = objectType({
-  "id": coerce.number()
+  "id": coerce.number().int()
 });
 var GetScriptResponse = objectType({
-  "id": numberType(),
-  "ownerId": numberType(),
+  "id": numberType().int(),
+  "ownerId": numberType().int(),
   "name": stringType(),
   "description": stringType().nullish(),
   "version": stringType(),
   "status": enumType(["active", "disabled"]),
   "content": stringType().nullish(),
   "obfuscatedContent": stringType().nullish(),
-  "loaderId": stringType().nullish(),
   "createdAt": stringType()
 });
 var UpdateScriptParams = objectType({
-  "id": coerce.number()
+  "id": coerce.number().int()
 });
 var UpdateScriptBody = objectType({
   "name": stringType().min(1).optional(),
@@ -57638,42 +57635,40 @@ var UpdateScriptBody = objectType({
   "content": stringType().optional()
 });
 var UpdateScriptResponse = objectType({
-  "id": numberType(),
-  "ownerId": numberType(),
+  "id": numberType().int(),
+  "ownerId": numberType().int(),
   "name": stringType(),
   "description": stringType().nullish(),
   "version": stringType(),
   "status": enumType(["active", "disabled"]),
   "content": stringType().nullish(),
   "obfuscatedContent": stringType().nullish(),
-  "loaderId": stringType().nullish(),
   "createdAt": stringType()
 });
 var DeleteScriptParams = objectType({
-  "id": coerce.number()
+  "id": coerce.number().int()
 });
 var DeleteScriptResponse = objectType({
   "success": booleanType()
 });
 var ToggleScriptParams = objectType({
-  "id": coerce.number()
+  "id": coerce.number().int()
 });
 var ToggleScriptResponse = objectType({
-  "id": numberType(),
-  "ownerId": numberType(),
+  "id": numberType().int(),
+  "ownerId": numberType().int(),
   "name": stringType(),
   "description": stringType().nullish(),
   "version": stringType(),
   "status": enumType(["active", "disabled"]),
   "content": stringType().nullish(),
   "obfuscatedContent": stringType().nullish(),
-  "loaderId": stringType().nullish(),
   "createdAt": stringType()
 });
 var ListPanelsResponseItem = objectType({
-  "id": numberType(),
-  "ownerId": numberType(),
-  "scriptId": numberType(),
+  "id": numberType().int(),
+  "ownerId": numberType().int(),
+  "scriptId": numberType().int(),
   "name": stringType(),
   "description": stringType().nullish(),
   "discordServerId": stringType().nullish(),
@@ -57685,7 +57680,7 @@ var ListPanelsResponseItem = objectType({
 });
 var ListPanelsResponse = arrayType(ListPanelsResponseItem);
 var CreatePanelBody = objectType({
-  "scriptId": numberType(),
+  "scriptId": numberType().int(),
   "name": stringType().min(1),
   "description": stringType().optional(),
   "discordServerId": stringType().optional(),
@@ -57694,9 +57689,9 @@ var CreatePanelBody = objectType({
   "requiredRoles": arrayType(stringType()).optional()
 });
 var CreatePanelResponse = objectType({
-  "id": numberType(),
-  "ownerId": numberType(),
-  "scriptId": numberType(),
+  "id": numberType().int(),
+  "ownerId": numberType().int(),
+  "scriptId": numberType().int(),
   "name": stringType(),
   "description": stringType().nullish(),
   "discordServerId": stringType().nullish(),
@@ -57707,12 +57702,12 @@ var CreatePanelResponse = objectType({
   "createdAt": stringType()
 });
 var GetPanelParams = objectType({
-  "id": coerce.number()
+  "id": coerce.number().int()
 });
 var GetPanelResponse = objectType({
-  "id": numberType(),
-  "ownerId": numberType(),
-  "scriptId": numberType(),
+  "id": numberType().int(),
+  "ownerId": numberType().int(),
+  "scriptId": numberType().int(),
   "name": stringType(),
   "description": stringType().nullish(),
   "discordServerId": stringType().nullish(),
@@ -57723,7 +57718,7 @@ var GetPanelResponse = objectType({
   "createdAt": stringType()
 });
 var UpdatePanelParams = objectType({
-  "id": coerce.number()
+  "id": coerce.number().int()
 });
 var UpdatePanelBody = objectType({
   "name": stringType().min(1).optional(),
@@ -57734,9 +57729,9 @@ var UpdatePanelBody = objectType({
   "requiredRoles": arrayType(stringType()).optional()
 });
 var UpdatePanelResponse = objectType({
-  "id": numberType(),
-  "ownerId": numberType(),
-  "scriptId": numberType(),
+  "id": numberType().int(),
+  "ownerId": numberType().int(),
+  "scriptId": numberType().int(),
   "name": stringType(),
   "description": stringType().nullish(),
   "discordServerId": stringType().nullish(),
@@ -57747,13 +57742,13 @@ var UpdatePanelResponse = objectType({
   "createdAt": stringType()
 });
 var DeletePanelParams = objectType({
-  "id": coerce.number()
+  "id": coerce.number().int()
 });
 var DeletePanelResponse = objectType({
   "success": booleanType()
 });
 var SendPanelParams = objectType({
-  "id": coerce.number()
+  "id": coerce.number().int()
 });
 var SendPanelBody = objectType({
   "channelId": stringType()
@@ -57762,106 +57757,116 @@ var SendPanelResponse = objectType({
   "success": booleanType()
 });
 var ListKeysResponseItem = objectType({
-  "id": numberType(),
+  "id": numberType().int(),
   "key": stringType(),
-  "scriptId": numberType(),
-  "userId": numberType().nullish(),
+  "scriptId": numberType().int(),
+  "userId": numberType().int().nullish(),
   "expiresAt": stringType().nullish(),
   "status": enumType(["active", "revoked", "expired"]),
   "whitelisted": booleanType().optional(),
+  "hwid": stringType().nullish(),
   "createdAt": stringType()
 });
 var ListKeysResponse = arrayType(ListKeysResponseItem);
 var GenerateKeyBody = objectType({
-  "scriptId": numberType(),
-  "userId": numberType().optional(),
+  "scriptId": numberType().int(),
+  "userId": numberType().int().optional(),
   "expiresAt": stringType().optional(),
   "whitelisted": booleanType().optional()
 });
 var GenerateKeyResponse = objectType({
-  "id": numberType(),
+  "id": numberType().int(),
   "key": stringType(),
-  "scriptId": numberType(),
-  "userId": numberType().nullish(),
+  "scriptId": numberType().int(),
+  "userId": numberType().int().nullish(),
   "expiresAt": stringType().nullish(),
   "status": enumType(["active", "revoked", "expired"]),
   "whitelisted": booleanType().optional(),
+  "hwid": stringType().nullish(),
   "createdAt": stringType()
 });
 var GetKeyParams = objectType({
-  "id": coerce.number()
+  "id": coerce.number().int()
 });
 var GetKeyResponse = objectType({
-  "id": numberType(),
+  "id": numberType().int(),
   "key": stringType(),
-  "scriptId": numberType(),
-  "userId": numberType().nullish(),
+  "scriptId": numberType().int(),
+  "userId": numberType().int().nullish(),
   "expiresAt": stringType().nullish(),
   "status": enumType(["active", "revoked", "expired"]),
   "whitelisted": booleanType().optional(),
+  "hwid": stringType().nullish(),
   "createdAt": stringType()
 });
 var DeleteKeyParams = objectType({
-  "id": coerce.number()
+  "id": coerce.number().int()
 });
 var DeleteKeyResponse = objectType({
   "success": booleanType()
 });
 var RevokeKeyParams = objectType({
-  "id": coerce.number()
+  "id": coerce.number().int()
 });
 var RevokeKeyResponse = objectType({
-  "id": numberType(),
+  "id": numberType().int(),
   "key": stringType(),
-  "scriptId": numberType(),
-  "userId": numberType().nullish(),
+  "scriptId": numberType().int(),
+  "userId": numberType().int().nullish(),
   "expiresAt": stringType().nullish(),
   "status": enumType(["active", "revoked", "expired"]),
   "whitelisted": booleanType().optional(),
+  "hwid": stringType().nullish(),
   "createdAt": stringType()
 });
+var ResetHwidParams = objectType({
+  "id": coerce.number().int()
+});
+var ResetHwidResponse = objectType({
+  "success": booleanType()
+});
 var ListServersResponseItem = objectType({
-  "id": numberType(),
+  "id": numberType().int(),
   "guildId": stringType(),
   "name": stringType(),
-  "ownerId": numberType().optional(),
+  "ownerId": numberType().int().optional(),
   "createdAt": stringType()
 });
 var ListServersResponse = arrayType(ListServersResponseItem);
 var DisconnectServerParams = objectType({
-  "id": coerce.number()
+  "id": coerce.number().int()
 });
 var DisconnectServerResponse = objectType({
   "success": booleanType()
 });
 var ListWhitelistParams = objectType({
-  "id": coerce.number()
+  "id": coerce.number().int()
 });
 var ListWhitelistResponseItem = objectType({
-  "id": numberType(),
-  "scriptId": numberType(),
+  "id": numberType().int(),
+  "scriptId": numberType().int(),
   "discordUserId": stringType(),
   "addedBy": stringType().nullish(),
   "createdAt": stringType()
 });
 var ListWhitelistResponse = arrayType(ListWhitelistResponseItem);
 var AddToWhitelistParams = objectType({
-  "id": coerce.number()
+  "id": coerce.number().int()
 });
 var AddToWhitelistBody = objectType({
   "discordUserId": stringType(),
   "addedBy": stringType().optional()
 });
 var AddToWhitelistResponse = objectType({
-  "id": numberType(),
-  "scriptId": numberType(),
+  "id": numberType().int(),
+  "scriptId": numberType().int(),
   "discordUserId": stringType(),
   "addedBy": stringType().nullish(),
   "createdAt": stringType()
 });
 var RemoveFromWhitelistParams = objectType({
-  "id": coerce.number(),
-  "entryId": coerce.number()
+  "id": coerce.number().int(),
+  "entryId": coerce.number().int()
 });
 var RemoveFromWhitelistResponse = objectType({
   "success": booleanType()
@@ -58469,6 +58474,7 @@ function formatKey(k) {
     expiresAt: k.expiresAt ? k.expiresAt.toISOString() : null,
     status: k.status,
     whitelisted: k.whitelisted,
+    hwid: k.hwid ?? null,
     createdAt: k.createdAt.toISOString()
   };
 }
@@ -58546,6 +58552,21 @@ router6.delete("/keys/:id", requireAuth, async (req, res) => {
     return;
   }
   res.json(DeleteKeyResponse.parse({ success: true }));
+});
+router6.post("/keys/:id/reset-hwid", requireAuth, async (req, res) => {
+  const id = parseId3(req.params.id);
+  const userId = req.session.userId;
+  const scriptIds = await getUserScriptIds(userId);
+  if (scriptIds.length === 0) {
+    res.status(404).json({ error: "Key not found" });
+    return;
+  }
+  const [key] = await db.update(licensesTable).set({ hwid: null }).where(and(eq(licensesTable.id, id), inArray(licensesTable.scriptId, scriptIds))).returning();
+  if (!key) {
+    res.status(404).json({ error: "Key not found" });
+    return;
+  }
+  res.json({ success: true });
 });
 router6.post("/keys/:id/revoke", requireAuth, async (req, res) => {
   const params = RevokeKeyParams.safeParse({ id: parseId3(req.params.id) });
@@ -58889,36 +58910,45 @@ router10.post("/public/loaders/:loaderId/execute", async (req, res) => {
   const { loaderId } = req.params;
   const key = typeof req.body?.key === "string" ? req.body.key.trim() : "";
   if (!key) {
-    res.status(400).json({ error: "Missing or invalid key." });
+    res.status(400).type("text/plain").send('error("[LuaBox] Missing key.",2)');
     return;
   }
+  const hwid = typeof req.body?.hwid === "string" ? req.body.hwid.trim() || null : null;
   try {
     const [script] = await db.select().from(scriptsTable).where(eq(scriptsTable.loaderId, loaderId)).limit(1);
     if (!script) {
-      res.status(404).json({ error: "Loader not found." });
+      res.status(404).type("text/plain").send('error("[LuaBox] Loader not found.",2)');
       return;
     }
     if (script.status !== "active") {
-      res.status(403).json({ error: "Script is disabled." });
+      res.status(403).type("text/plain").send('error("[LuaBox] This script is currently disabled.",2)');
       return;
     }
     const [license] = await db.select().from(licensesTable).where(and(eq(licensesTable.key, key), eq(licensesTable.scriptId, script.id))).limit(1);
     if (!license) {
-      res.status(403).json({ error: "Invalid key." });
+      res.status(403).type("text/plain").send('error("[LuaBox] Invalid or inactive key.",2)');
       return;
     }
     if (license.status !== "active") {
-      res.status(403).json({ error: "Key is revoked or inactive." });
+      res.status(403).type("text/plain").send('error("[LuaBox] Key is revoked or inactive.",2)');
       return;
     }
     if (license.expiresAt && license.expiresAt <= /* @__PURE__ */ new Date()) {
-      res.status(403).json({ error: "Key has expired." });
+      res.status(403).type("text/plain").send('error("[LuaBox] Key has expired.",2)');
       return;
+    }
+    if (hwid) {
+      if (!license.hwid) {
+        await db.update(licensesTable).set({ hwid }).where(eq(licensesTable.id, license.id));
+      } else if (license.hwid !== hwid) {
+        res.status(403).type("text/plain").send('error("[LuaBox] HWID mismatch. Ask the script owner to reset your HWID.",2)');
+        return;
+      }
     }
     let obfContent = script.obfuscatedContent;
     if (!obfContent) {
       if (!script.content) {
-        res.status(503).json({ error: "Script has no content yet." });
+        res.status(503).type("text/plain").send('error("[LuaBox] Script has no content yet.",2)');
         return;
       }
       obfContent = obfuscateLua(script.content);
@@ -58927,7 +58957,7 @@ router10.post("/public/loaders/:loaderId/execute", async (req, res) => {
     res.type("text/plain").send(obfContent);
   } catch (err) {
     logger.error({ err }, "Loader execute error");
-    res.status(500).json({ error: "Internal server error." });
+    res.status(500).type("text/plain").send('error("[LuaBox] Internal server error.",2)');
   }
 });
 var loaders_default = router10;

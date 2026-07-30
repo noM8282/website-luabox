@@ -30,6 +30,7 @@ function formatKey(k: typeof licensesTable.$inferSelect) {
     expiresAt: k.expiresAt ? k.expiresAt.toISOString() : null,
     status: k.status as "active" | "revoked" | "expired",
     whitelisted: k.whitelisted,
+    hwid: k.hwid ?? null,
     createdAt: k.createdAt.toISOString(),
   };
 }
@@ -131,6 +132,26 @@ router.delete("/keys/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
   res.json(DeleteKeyResponse.parse({ success: true }));
+});
+
+router.post("/keys/:id/reset-hwid", requireAuth, async (req, res): Promise<void> => {
+  const id = parseId(req.params.id);
+  const userId = req.session.userId!;
+  const scriptIds = await getUserScriptIds(userId);
+  if (scriptIds.length === 0) {
+    res.status(404).json({ error: "Key not found" });
+    return;
+  }
+  const [key] = await db
+    .update(licensesTable)
+    .set({ hwid: null })
+    .where(and(eq(licensesTable.id, id), inArray(licensesTable.scriptId, scriptIds)))
+    .returning();
+  if (!key) {
+    res.status(404).json({ error: "Key not found" });
+    return;
+  }
+  res.json({ success: true });
 });
 
 router.post("/keys/:id/revoke", requireAuth, async (req, res): Promise<void> => {

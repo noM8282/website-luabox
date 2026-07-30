@@ -479,6 +479,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/LicenseKey"
 
+  /keys/{id}/reset-hwid:
+    post:
+      operationId: resetHwid
+      tags: [keys]
+      summary: Clear the bound HWID for a license key so it can be rebound on next execution
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: HWID cleared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Key not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /servers:
     get:
       operationId: listServers
@@ -822,6 +847,8 @@ components:
           enum: [active, revoked, expired]
         whitelisted:
           type: boolean
+        hwid:
+          type: ["string", "null"]
         createdAt:
           type: string
 

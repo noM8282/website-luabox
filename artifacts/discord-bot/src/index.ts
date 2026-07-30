@@ -683,31 +683,58 @@ async function handleWhitelistAdd(interaction: ChatInputCommandInteraction) {
     }
   }
 
-  // Send whitelist announcement to the panel channel (or DM as fallback)
-  await sendWhitelistAnnouncement({
-    user: {
-      id: user.id,
-      username: user.username,
-      displayAvatarURL: () => user.displayAvatarURL({ size: 64 }),
-    },
-    scriptName: script.name,
-    panel: {
-      channelId: panel.channelId ?? null,
-      messageId: panel.messageId ?? null,
-      discordServerId: panel.discordServerId ?? null,
-    },
-    expiresAt,
-    autoKey,
-  });
+  // Build panel jump link
+  const panelLink =
+    panel.discordServerId && panel.channelId && panel.messageId
+      ? `https://discord.com/channels/${panel.discordServerId}/${panel.channelId}/${panel.messageId}`
+      : null;
 
-  const expiryNote = expiresAt
-    ? ` Expires <t:${Math.floor(expiresAt.getTime() / 1000)}:R>.`
-    : " (Lifetime)";
+  const expiryValue = expiresAt
+    ? `<t:${Math.floor(expiresAt.getTime() / 1000)}:R>`
+    : "♾️ Lifetime";
 
+  const wlEmbed = new EmbedBuilder()
+    .setColor(0x57f287)
+    .setTitle("✅  You have been whitelisted!")
+    .setDescription(
+      `Hey <@${user.id}>! You now have access to **${script.name}**.\n` +
+        (panelLink
+          ? `\nHead over to the panel and click **Get Script** to grab your loader.`
+          : `\nUse the panel in this server to grab your script.`),
+    )
+    .setThumbnail(user.displayAvatarURL({ size: 64 }))
+    .addFields({ name: "⏳  Access", value: expiryValue, inline: true })
+    .setFooter({ text: "LuaBox  •  Script Management" })
+    .setTimestamp();
+
+  if (autoKey) {
+    wlEmbed.addFields({ name: "🔑  Your Key", value: `\`${autoKey}\``, inline: true });
+  }
+  if (panelLink) {
+    wlEmbed.addFields({ name: "🎮  Get Your Script", value: `[Open panel →](${panelLink})`, inline: false });
+  }
+
+  // Non-ephemeral reply — everyone in this channel sees the announcement
   await interaction.reply({
-    content: `✅ ${user.username} whitelisted to **${panel.name}**.${expiryNote}${autoKey ? ` Key \`${autoKey}\` auto-generated & redeemed — they can click **Get Script** now.` : " (Key already existed.)"}`,
-    ephemeral: true,
+    content: `<@${user.id}>`,
+    embeds: [wlEmbed],
+    ephemeral: false,
   });
+
+  // Also send to the panel channel if it's a different channel
+  if (panel.channelId && panel.channelId !== interaction.channelId) {
+    try {
+      const ch = await client.channels.fetch(panel.channelId);
+      if (ch && ch.isTextBased()) {
+        await (ch as import("discord.js").TextChannel).send({
+          content: `<@${user.id}>`,
+          embeds: [wlEmbed],
+        });
+      }
+    } catch {
+      // Channel unreachable — the interaction reply already notified everyone
+    }
+  }
 }
 
 async function handleWhitelistRemove(interaction: ChatInputCommandInteraction) {
