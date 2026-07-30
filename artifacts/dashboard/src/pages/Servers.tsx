@@ -62,8 +62,8 @@ export function Servers() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Connected Servers</h1>
-          <p className="text-muted-foreground mt-1">Discord guilds where your bot is installed.</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Connected Servers</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Discord guilds where your bot is installed.</p>
         </div>
         <div className="flex gap-2">
           {inviteData?.url && (
@@ -102,35 +102,59 @@ export function Servers() {
           </div>
         ) : (
           <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Server Name</TableHead>
-                  <TableHead>Guild ID</TableHead>
-                  <TableHead>Connected On</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {servers?.map((server) => (
-                  <TableRow key={server.id}>
-                    <TableCell className="font-medium">{server.name}</TableCell>
-                    <TableCell className="font-mono text-sm text-muted-foreground">{server.guildId}</TableCell>
-                    <TableCell className="text-muted-foreground">{formatDate(server.createdAt)}</TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDisconnect(server.id)}
-                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      >
-                        <Unplug className="mr-2 h-4 w-4" /> Disconnect
-                      </Button>
-                    </TableCell>
+            {/* Mobile card list */}
+            <div className="md:hidden divide-y divide-border">
+              {servers?.map((server) => (
+                <div key={server.id} className="p-4 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{server.name}</p>
+                    <p className="font-mono text-xs text-muted-foreground mt-0.5 select-all">{server.guildId}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{formatDate(server.createdAt)}</p>
+                  </div>
+                  <Button
+                    variant="ghost" size="icon"
+                    onClick={() => handleDisconnect(server.id)}
+                    className="text-destructive hover:bg-destructive/10 shrink-0"
+                    title="Disconnect"
+                  >
+                    <Unplug className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Server Name</TableHead>
+                    <TableHead>Guild ID</TableHead>
+                    <TableHead>Connected On</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {servers?.map((server) => (
+                    <TableRow key={server.id}>
+                      <TableCell className="font-medium">{server.name}</TableCell>
+                      <TableCell className="font-mono text-sm text-muted-foreground">{server.guildId}</TableCell>
+                      <TableCell className="text-muted-foreground">{formatDate(server.createdAt)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDisconnect(server.id)}
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <Unplug className="mr-2 h-4 w-4" /> Disconnect
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </>
         )}
       </Card>

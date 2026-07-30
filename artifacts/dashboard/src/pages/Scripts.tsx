@@ -2,6 +2,7 @@ import * as React from "react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { Link } from "wouter"
 import {
   useListScripts,
   useCreateScript,
@@ -10,16 +11,15 @@ import {
   getListScriptsQueryKey,
 } from "@workspace/api-client-react"
 import { useQueryClient } from "@tanstack/react-query"
-import { Link } from "wouter"
-import { Plus, Trash2, Power, PowerOff, Code2, Upload, FileCode, Copy, Check } from "lucide-react"
+import { Plus, Trash2, Code2, FileCode, Upload, Power, PowerOff } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Textarea } from "@/components/ui/textarea"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { formatDate } from "@/lib/utils"
@@ -27,8 +27,8 @@ import { formatDate } from "@/lib/utils"
 const scriptSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
-  version: z.string().min(1, "Version is required").default("1.0.0"),
-  content: z.string().optional(),
+  version: z.string().min(1, "Version is required"),
+  content: z.string().min(1, "Script content is required"),
 })
 
 export function Scripts() {
@@ -41,18 +41,6 @@ export function Scripts() {
   const [open, setOpen] = React.useState(false)
   const fileRef = React.useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = React.useState(false)
-  const [copiedId, setCopiedId] = React.useState<number | null>(null)
-
-  function copyLoaderSnippet(script: { id: number; loaderId?: string | null }, key?: string | null) {
-    if (!script.loaderId) return
-    const url = `${window.location.origin}/api/public/loaders/${script.loaderId}/lua`
-    const k = key ?? "YOUR_KEY_HERE"
-    const snippet = `script_key="${k}";\n\nloadstring(game:HttpGet("${url}?key=${k}"))()`
-    navigator.clipboard.writeText(snippet).then(() => {
-      setCopiedId(script.id)
-      setTimeout(() => setCopiedId(null), 2000)
-    })
-  }
 
   const form = useForm<z.infer<typeof scriptSchema>>({
     resolver: zodResolver(scriptSchema),
@@ -68,7 +56,6 @@ export function Scripts() {
     reader.onload = (e) => {
       const text = e.target?.result as string
       form.setValue("content", text)
-      // Auto-fill name from filename if empty
       if (!form.getValues("name")) {
         form.setValue("name", file.name.replace(/\.(lua|txt)$/, ""))
       }
@@ -136,13 +123,13 @@ export function Scripts() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Scripts</h1>
-          <p className="text-muted-foreground mt-1">Manage your Lua script catalog.</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Scripts</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Manage your Lua script catalog.</p>
         </div>
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> New Script</Button>
+            <Button size="sm"><Plus className="mr-2 h-4 w-4" /> New Script</Button>
           </DialogTrigger>
           <DialogContent className="max-w-xl">
             <DialogHeader>
@@ -153,8 +140,6 @@ export function Scripts() {
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-
-                {/* File drop zone */}
                 <div
                   className={`relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
                     isDragging
@@ -262,82 +247,109 @@ export function Scripts() {
             <Button onClick={() => setOpen(true)} variant="outline">Upload Script</Button>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-16">ID</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Version</TableHead>
-                <TableHead>Loader Snippet</TableHead>
-                <TableHead>Code</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="w-[90px] text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <>
+            {/* Mobile card list */}
+            <div className="md:hidden divide-y divide-border">
               {scripts?.map((script) => (
-                <TableRow key={script.id}>
-                  <TableCell className="font-mono text-xs text-muted-foreground select-all">{script.id}</TableCell>
-                  <TableCell className="font-medium">
-                    <Link href={`/scripts/${script.id}`} className="hover:underline text-primary">
-                      {script.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">{script.version}</TableCell>
-                  <TableCell>
-                    {script.loaderId ? (
-                      <div className="flex items-center gap-1.5 max-w-[220px]">
-                        <span className="truncate font-mono text-xs text-muted-foreground select-all">
-                          script_key="…"; loadstring(…/{script.loaderId}/lua?key=…)()
-                        </span>
-                        <button
-                          onClick={() => copyLoaderSnippet(script)}
-                          title="Copy loader snippet"
-                          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          {copiedId === script.id
-                            ? <Check className="h-3.5 w-3.5 text-green-500" />
-                            : <Copy className="h-3.5 w-3.5" />}
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground italic">re-upload to generate</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {script.obfuscatedContent
-                      ? <Badge variant="outline" className="text-green-400 border-green-400/30">obfuscated</Badge>
-                      : <span className="text-xs text-muted-foreground">—</span>}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={script.status === "active" ? "success" : "secondary"}>
+                <div key={script.id} className="p-4 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <Link href={`/scripts/${script.id}`} className="font-medium text-primary hover:underline truncate block">
+                        {script.name}
+                      </Link>
+                      <p className="text-xs text-muted-foreground mt-0.5">v{script.version} · ID {script.id}</p>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <Button
+                        variant="ghost" size="icon"
+                        onClick={() => handleToggle(script.id, script.status)}
+                        title={script.status === "active" ? "Disable" : "Enable"}
+                      >
+                        {script.status === "active"
+                          ? <PowerOff className="h-4 w-4 text-muted-foreground" />
+                          : <Power className="h-4 w-4 text-green-500" />}
+                      </Button>
+                      <Button
+                        variant="ghost" size="icon"
+                        onClick={() => handleDelete(script.id)}
+                        className="text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant={script.status === "active" ? "success" : "secondary"} className="text-xs">
                       {script.status}
                     </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">{formatDate(script.createdAt)}</TableCell>
-                  <TableCell className="text-right space-x-1">
-                    <Button
-                      variant="ghost" size="icon"
-                      onClick={() => handleToggle(script.id, script.status)}
-                      title={script.status === "active" ? "Disable" : "Enable"}
-                    >
-                      {script.status === "active"
-                        ? <PowerOff className="h-4 w-4 text-muted-foreground" />
-                        : <Power className="h-4 w-4 text-green-500" />}
-                    </Button>
-                    <Button
-                      variant="ghost" size="icon"
-                      onClick={() => handleDelete(script.id)}
-                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
+                    {script.obfuscatedContent && (
+                      <Badge variant="outline" className="text-green-400 border-green-400/30 text-xs">obfuscated</Badge>
+                    )}
+                    <span className="text-xs text-muted-foreground">{formatDate(script.createdAt)}</span>
+                  </div>
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-16">ID</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Version</TableHead>
+                    <TableHead>Code</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="w-[90px] text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {scripts?.map((script) => (
+                    <TableRow key={script.id}>
+                      <TableCell className="font-mono text-xs text-muted-foreground select-all">{script.id}</TableCell>
+                      <TableCell className="font-medium">
+                        <Link href={`/scripts/${script.id}`} className="hover:underline text-primary">
+                          {script.name}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{script.version}</TableCell>
+                      <TableCell>
+                        {script.obfuscatedContent
+                          ? <Badge variant="outline" className="text-green-400 border-green-400/30">obfuscated</Badge>
+                          : <span className="text-xs text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={script.status === "active" ? "success" : "secondary"}>
+                          {script.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{formatDate(script.createdAt)}</TableCell>
+                      <TableCell className="text-right space-x-1">
+                        <Button
+                          variant="ghost" size="icon"
+                          onClick={() => handleToggle(script.id, script.status)}
+                          title={script.status === "active" ? "Disable" : "Enable"}
+                        >
+                          {script.status === "active"
+                            ? <PowerOff className="h-4 w-4 text-muted-foreground" />
+                            : <Power className="h-4 w-4 text-green-500" />}
+                        </Button>
+                        <Button
+                          variant="ghost" size="icon"
+                          onClick={() => handleDelete(script.id)}
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </Card>
     </div>

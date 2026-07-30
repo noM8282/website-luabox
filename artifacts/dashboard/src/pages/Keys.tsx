@@ -113,13 +113,13 @@ export function Keys() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">License Keys</h1>
-          <p className="text-muted-foreground mt-1">Manage access tokens for your scripts.</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">License Keys</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Manage access tokens for your scripts.</p>
         </div>
         
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button size="sm">
               <Plus className="mr-2 h-4 w-4" /> Generate Key
             </Button>
           </DialogTrigger>
@@ -204,63 +204,105 @@ export function Keys() {
             </Button>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Key</TableHead>
-                <TableHead>Script</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Expires</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <>
+            {/* Mobile card list */}
+            <div className="md:hidden divide-y divide-border">
               {keys?.map((key) => {
                 const script = scripts?.find(s => s.id === key.scriptId)
                 return (
-                  <TableRow key={key.id}>
-                    <TableCell className="font-mono text-sm tracking-tight">{key.key}</TableCell>
-                    <TableCell>
-                      {script ? <span className="font-medium">{script.name}</span> : <span className="text-muted-foreground">-</span>}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={key.status === 'active' ? 'success' : key.status === 'revoked' ? 'destructive' : 'secondary'}>
+                  <div key={key.id} className="p-4 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-mono text-xs text-foreground break-all select-all leading-relaxed">{key.key}</p>
+                      <div className="flex gap-1 shrink-0">
+                        {key.status === 'active' && (
+                          <Button variant="ghost" size="icon" onClick={() => handleRevoke(key.id)} title="Revoke">
+                            <Ban className="h-4 w-4 text-yellow-500" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost" size="icon"
+                          onClick={() => handleDelete(key.id)}
+                          className="text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                      <Badge variant={key.status === 'active' ? 'success' : key.status === 'revoked' ? 'destructive' : 'secondary'} className="text-xs">
                         {key.status}
                       </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {key.expiresAt
-                        ? formatDate(key.expiresAt)
-                        : <span className="text-xs text-muted-foreground/60">Lifetime</span>}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{formatDate(key.createdAt)}</TableCell>
-                    <TableCell className="text-right space-x-2">
-                      {key.status === 'active' && (
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => handleRevoke(key.id)}
-                          title="Revoke Key"
-                        >
-                          <Ban className="h-4 w-4 text-warning" />
-                        </Button>
-                      )}
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleDelete(key.id)}
-                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        title="Delete Key"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+                      {script && <span className="font-medium text-foreground">{script.name}</span>}
+                      <span>
+                        {key.expiresAt ? `Expires ${formatDate(key.expiresAt)}` : "Lifetime"}
+                      </span>
+                    </div>
+                  </div>
                 )
               })}
-            </TableBody>
-          </Table>
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Key</TableHead>
+                    <TableHead>Script</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Expires</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {keys?.map((key) => {
+                    const script = scripts?.find(s => s.id === key.scriptId)
+                    return (
+                      <TableRow key={key.id}>
+                        <TableCell className="font-mono text-sm tracking-tight">{key.key}</TableCell>
+                        <TableCell>
+                          {script ? <span className="font-medium">{script.name}</span> : <span className="text-muted-foreground">-</span>}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={key.status === 'active' ? 'success' : key.status === 'revoked' ? 'destructive' : 'secondary'}>
+                            {key.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {key.expiresAt
+                            ? formatDate(key.expiresAt)
+                            : <span className="text-xs text-muted-foreground/60">Lifetime</span>}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{formatDate(key.createdAt)}</TableCell>
+                        <TableCell className="text-right space-x-2">
+                          {key.status === 'active' && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => handleRevoke(key.id)}
+                              title="Revoke Key"
+                            >
+                              <Ban className="h-4 w-4 text-warning" />
+                            </Button>
+                          )}
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleDelete(key.id)}
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            title="Delete Key"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </Card>
     </div>

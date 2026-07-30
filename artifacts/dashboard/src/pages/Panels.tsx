@@ -234,13 +234,13 @@ export function Panels() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Panels</h1>
-          <p className="text-muted-foreground mt-1">Discord embed panels for script access.</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Panels</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Discord embed panels for script access.</p>
         </div>
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> New Panel</Button>
+            <Button size="sm"><Plus className="mr-2 h-4 w-4" /> New Panel</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -335,57 +335,92 @@ export function Panels() {
             <Button onClick={() => setOpen(true)} variant="outline">Create Panel</Button>
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-16">ID</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Script</TableHead>
-                <TableHead>Buyer Role</TableHead>
-                <TableHead>Last Sent</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <>
+            {/* Mobile card list */}
+            <div className="md:hidden divide-y divide-border">
               {panels?.map((panel) => {
                 const script = scripts?.find((s) => s.id === panel.scriptId)
                 return (
-                  <TableRow key={panel.id}>
-                    <TableCell className="font-mono text-xs text-muted-foreground select-all">{panel.id}</TableCell>
-                    <TableCell className="font-medium">{panel.name}</TableCell>
-                    <TableCell>
-                      {script
-                        ? <Badge variant="outline">{script.name}</Badge>
-                        : <span className="text-muted-foreground">—</span>}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {panel.buyerRoleId
-                        ? <span className="select-all">{panel.buyerRoleId}</span>
-                        : <span>—</span>}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {panel.channelId
-                        ? <span className="text-xs">#{panel.channelId}</span>
-                        : <span>Not sent yet</span>}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{formatDate(panel.createdAt)}</TableCell>
-                    <TableCell className="text-right flex justify-end gap-1">
-                      <SendPanelDialog panelId={panel.id} panelName={panel.name} />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(panel.id)}
-                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+                  <div key={panel.id} className="p-4 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-medium">{panel.name}</p>
+                        {script && <Badge variant="outline" className="mt-1 text-xs">{script.name}</Badge>}
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <SendPanelDialog panelId={panel.id} panelName={panel.name} />
+                        <Button
+                          variant="ghost" size="icon"
+                          onClick={() => handleDelete(panel.id)}
+                          className="text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {panel.channelId ? `Sent to #${panel.channelId}` : "Not sent yet"} · {formatDate(panel.createdAt)}
+                    </p>
+                  </div>
                 )
               })}
-            </TableBody>
-          </Table>
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-16">ID</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Script</TableHead>
+                    <TableHead>Buyer Role</TableHead>
+                    <TableHead>Last Sent</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {panels?.map((panel) => {
+                    const script = scripts?.find((s) => s.id === panel.scriptId)
+                    return (
+                      <TableRow key={panel.id}>
+                        <TableCell className="font-mono text-xs text-muted-foreground select-all">{panel.id}</TableCell>
+                        <TableCell className="font-medium">{panel.name}</TableCell>
+                        <TableCell>
+                          {script
+                            ? <Badge variant="outline">{script.name}</Badge>
+                            : <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {panel.buyerRoleId
+                            ? <span className="select-all">{panel.buyerRoleId}</span>
+                            : <span>—</span>}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {panel.channelId
+                            ? <span className="text-xs">#{panel.channelId}</span>
+                            : <span>Not sent yet</span>}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{formatDate(panel.createdAt)}</TableCell>
+                        <TableCell className="text-right flex justify-end gap-1">
+                          <SendPanelDialog panelId={panel.id} panelName={panel.name} />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(panel.id)}
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </Card>
     </div>
