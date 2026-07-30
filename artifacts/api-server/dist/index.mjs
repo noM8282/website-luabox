@@ -58064,20 +58064,56 @@ import { randomBytes as randomBytes2 } from "crypto";
 
 // src/lib/obfuscate.ts
 import { randomBytes } from "crypto";
-function rname(len = 10) {
+function rname(len = 11) {
   const alpha = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const buf = randomBytes(len);
   return "_" + Array.from(buf, (b) => alpha[b % alpha.length]).join("");
 }
+function randInt(min, max) {
+  const range = max - min + 1;
+  return min + randomBytes(1)[0] % range;
+}
+function xorKeyChain(k, lines) {
+  const mask1 = randInt(10, 250);
+  const mask2 = randInt(10, 250);
+  const stored = k ^ mask1 ^ mask2;
+  const vRaw = rname();
+  const vMid = rname();
+  const vKey = rname();
+  lines.push(`local ${vRaw}=${stored}`);
+  lines.push(`local ${vMid}=bit32.bxor(${vRaw},${mask2})`);
+  lines.push(`local ${vKey}=bit32.bxor(${vMid},${mask1})`);
+  return vKey;
+}
+function junkBlock(lines, count2 = 5) {
+  const names = [];
+  for (let i = 0; i < count2; i++) {
+    const v = rname();
+    names.push(v);
+    if (i === 0) {
+      lines.push(`local ${v}=${randInt(5, 200)}*${randInt(2, 9)}+${randInt(1, 50)}`);
+    } else {
+      const prev = names[randInt(0, i - 1)];
+      const op = ["+", "-", "*"][randInt(0, 2)];
+      lines.push(`local ${v}=${prev}${op}${randInt(1, 30)}`);
+    }
+  }
+  lines.push(`${names.join(",")}=${names.map(() => "nil").join(",")}`);
+}
 function obfuscateLua(code) {
   if (!code.trim()) return code;
-  const [k1, k2, k3, k4] = Array.from(randomBytes(4)).map((b) => b % 200 + 28);
+  const [k1, k2, k3, k4, k5, k6, kP] = Array.from(randomBytes(7)).map(
+    (b) => b % 200 + 28
+  );
   const raw = Array.from(Buffer.from(code, "utf8"));
-  const encoded = raw.map((b) => {
-    let v = (b + k1) % 256;
+  const encoded = raw.map((b, i) => {
+    let v = b + k1 & 255;
     v = v ^ k2;
-    v = (v + k3) % 256;
+    v = v + k3 & 255;
     v = v ^ k4;
+    v = v + k5 & 255;
+    v = v ^ k6;
+    v = v + (i * kP & 255) & 255;
     return v;
   });
   const CHUNK_SIZE = 150;
@@ -58085,66 +58121,66 @@ function obfuscateLua(code) {
   for (let i = 0; i < encoded.length; i += CHUNK_SIZE) {
     chunks.push(encoded.slice(i, i + CHUNK_SIZE));
   }
-  function splitKey(k) {
-    const a = Math.floor(Math.random() * 20) + 5;
-    return [a, k - a];
-  }
-  const [k1a, k1b] = splitKey(k1);
-  const [k2a, k2b] = splitKey(k2);
-  const [k3a, k3b] = splitKey(k3);
-  const [k4a, k4b] = splitKey(k4);
-  const vK1 = rname();
-  const vK2 = rname();
-  const vK3 = rname();
-  const vK4 = rname();
+  const vStrLib = rname();
+  const vStrChar = rname();
+  const vTblConcat = rname();
+  const vLoadStr = rname();
+  const vIpairs = rname();
   const vChunks = rname();
   const vOut = rname();
-  const vN = rname();
+  const vPos = rname();
   const vCh = rname();
   const vByte = rname();
   const vTmp = rname();
   const vSrc = rname();
   const vFn = rname();
   const vErr = rname();
-  const lines = [
-    // Key definitions (computed, not plain literals)
-    `local ${vK1}=${k1a}+${k1b}`,
-    `local ${vK2}=${k2a}+${k2b}`,
-    `local ${vK3}=${k3a}+${k3b}`,
-    `local ${vK4}=${k4a}+${k4b}`,
-    // Byte chunks
-    `local ${vChunks}={`,
-    ...chunks.map((ch, i) => `  {${ch.join(",")}}${i < chunks.length - 1 ? "," : ""}`),
-    `}`,
-    // Decode loop: reassemble and reverse the 4-layer encoding
-    `local ${vOut}={}`,
-    `local ${vN}=0`,
-    `for _,${vCh} in ipairs(${vChunks}) do`,
-    `  for _,${vByte} in ipairs(${vCh}) do`,
-    `    ${vN}=${vN}+1`,
-    // Reverse step4: XOR k4
-    `    local ${vTmp}=bit32.bxor(${vByte},${vK4})`,
-    // Reverse step3: subtract k3 mod 256
-    `    ${vTmp}=(${vTmp}-${vK3})%256`,
-    // Reverse step2: XOR k2
-    `    ${vTmp}=bit32.bxor(${vTmp},${vK2})`,
-    // Reverse step1: subtract k1 mod 256
-    `    ${vTmp}=(${vTmp}-${vK1})%256`,
-    `    ${vOut}[${vN}]=string.char(${vTmp})`,
-    `  end`,
-    `end`,
-    // Wipe keys from memory (anti-dump: keys gone before execution)
-    `${vK1},${vK2},${vK3},${vK4}=nil,nil,nil,nil`,
-    // Build source string then wipe the char table
-    `local ${vSrc}=table.concat(${vOut})`,
-    `for _i=1,${vN} do ${vOut}[_i]=nil end`,
-    `${vOut},${vN},${vChunks}=nil,nil,nil`,
-    // Compile
-    `local ${vFn},${vErr}=loadstring(${vSrc})`,
-    // Anti-dump: wipe source string before the function runs
-    `${vSrc}=nil`,
-    `if ${vFn} then return ${vFn}() else error(${vErr},2) end`
-  ];
+  const vI = rname();
+  const lines = [];
+  lines.push(`local ${vStrLib}=string`);
+  lines.push(`local ${vStrChar}=${vStrLib}.char`);
+  lines.push(`local ${vTblConcat}=table.concat`);
+  lines.push(`local ${vLoadStr}=loadstring`);
+  lines.push(`local ${vIpairs}=ipairs`);
+  const vK1 = xorKeyChain(k1, lines);
+  const vK2 = xorKeyChain(k2, lines);
+  junkBlock(lines, randInt(4, 7));
+  const vK3 = xorKeyChain(k3, lines);
+  const vK4 = xorKeyChain(k4, lines);
+  const vK5 = xorKeyChain(k5, lines);
+  junkBlock(lines, randInt(4, 6));
+  const vK6 = xorKeyChain(k6, lines);
+  const vKP = xorKeyChain(kP, lines);
+  lines.push(`local ${vChunks}={`);
+  chunks.forEach((ch, i) => {
+    lines.push(`  {${ch.join(",")}}${i < chunks.length - 1 ? "," : ""}`);
+  });
+  lines.push(`}`);
+  lines.push(`local ${vOut}={}`);
+  lines.push(`local ${vPos}=0`);
+  lines.push(`for ${vI},${vCh} in ${vIpairs}(${vChunks}) do`);
+  lines.push(`  for _,${vByte} in ${vIpairs}(${vCh}) do`);
+  lines.push(`    local ${vTmp}=(${vByte}-(${vPos}*${vKP})%256)%256`);
+  lines.push(`    ${vTmp}=bit32.bxor(${vTmp},${vK6})`);
+  lines.push(`    ${vTmp}=(${vTmp}-${vK5})%256`);
+  lines.push(`    ${vTmp}=bit32.bxor(${vTmp},${vK4})`);
+  lines.push(`    ${vTmp}=(${vTmp}-${vK3})%256`);
+  lines.push(`    ${vTmp}=bit32.bxor(${vTmp},${vK2})`);
+  lines.push(`    ${vTmp}=(${vTmp}-${vK1})%256`);
+  lines.push(`    ${vPos}=${vPos}+1`);
+  lines.push(`    ${vOut}[${vPos}]=${vStrChar}(${vTmp})`);
+  lines.push(`  end`);
+  lines.push(`end`);
+  lines.push(
+    `${vK1},${vK2},${vK3},${vK4},${vK5},${vK6},${vKP}=nil,nil,nil,nil,nil,nil,nil`
+  );
+  lines.push(`${vChunks}=nil`);
+  lines.push(`local ${vSrc}=${vTblConcat}(${vOut})`);
+  lines.push(`for ${vI}=1,${vPos} do ${vOut}[${vI}]=nil end`);
+  lines.push(`${vOut},${vPos},${vTblConcat},${vStrLib},${vStrChar},${vIpairs}=nil,nil,nil,nil,nil,nil`);
+  lines.push(`local ${vFn},${vErr}=${vLoadStr}(${vSrc})`);
+  lines.push(`${vSrc},${vLoadStr}=nil,nil`);
+  lines.push(`if ${vFn} then return ${vFn}() else error(${vErr},2) end`);
   return lines.join("\n");
 }
 
