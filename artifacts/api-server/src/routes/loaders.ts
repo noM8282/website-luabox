@@ -6,88 +6,72 @@ import { logger } from "../lib/logger";
 const router = Router();
 
 function getBaseUrl(req: { protocol: string; headers: { host?: string } }): string {
+  // LOADER_BASE_URL lets you point loaders at a custom domain (e.g. faulmor.site)
+  if (process.env.LOADER_BASE_URL) return process.env.LOADER_BASE_URL.replace(/\/$/, "");
   const domain = process.env.REPLIT_DEV_DOMAIN;
   if (domain) return `https://${domain}`;
   return `${req.protocol}://${req.headers.host ?? "localhost"}`;
 }
 
-function buildBootstrapLua(executeUrl: string, key: string | null): string {
-  // When key is provided it is embedded directly; otherwise the script reads
-  // the global script_key set by the user before executing the loader.
-  const keyLine = key
-    ? `local key = "${key}"`
-    : `local key = (getgenv and getgenv().script_key) or _G.script_key or ""\n\nif key == "" then\n    error("[LuaBox] script_key is not set. Set it before executing the loader.", 2)\nend`;
-
-  return `-- LuaBox Secure Loader
-local HttpService = game:GetService("HttpService")
-
-${keyLine}
-
-local ok, result = pcall(function()
-    return HttpService:RequestAsync({
-        Url = "${executeUrl}",
-        Method = "POST",
-        Headers = { ["Content-Type"] = "application/json" },
-        Body = HttpService:JSONEncode({ key = key })
-    })
-end)
-
-if not ok then
-    error("[LuaBox] Network error: " .. tostring(result), 2)
-end
-
-if result.StatusCode ~= 200 then
-    local errMsg = "[LuaBox] Access denied."
-    pcall(function()
-        local decoded = HttpService:JSONDecode(result.Body)
-        if decoded and decoded.error then
-            errMsg = "[LuaBox] " .. decoded.error
-        end
-    end)
-    error(errMsg, 2)
-end
-
-loadstring(result.Body)()
-`;
+/**
+ * Build the two-line loader snippet shown to the user in the dashboard.
+ * Format:
+ *   script_key="KEY";
+ *
+ *   loadstring(game:HttpGet("BASE/api/public/loaders/LOADER_ID/lua?key=KEY"))()
+ */
+export function buildLoaderSnippet(loaderUrl: string, key: string): string {
+  return `script_key="${key}";\n\nloadstring(game:HttpGet("${loaderUrl}?key=${key}"))()`;
 }
 
 /**
  * GET /api/public/loaders/:loaderId/lua
- * GET /api/public/loaders/:loaderId/lua?k=<key>   ← personalized (key embedded)
  *
- * Without ?k=: returns a generic bootstrap that reads script_key from the
- * executor global — the user must set it before calling the loader.
- *
- * With ?k=<key>: validates the key immediately and returns a bootstrap with
- * the key baked in — the user just pastes one line into their executor.
+ * Without ?key=  → 400; the snippet must be executed with a key.
+ * With ?key=KEY  → validates the key, then returns the obfuscated Lua source
+ *                  as plain text so Roblox's loadstring() can execute it directly.
  */
 router.get("/public/loaders/:loaderId/lua", async (req, res): Promise<void> => {
   const { loaderId } = req.params;
-  const embeddedKey = typeof req.query.k === "string" ? req.query.k.trim() : null;
+  const key = typeof req.query.key === "string" ? req.query.key.trim() : null;
 
-  // ── Validate script exists and is active ─────────────────────────────────
-  const [script] = await db
-    .select({ id: scriptsTable.id, status: scriptsTable.status })
-    .from(scriptsTable)
-    .where(eq(scriptsTable.loaderId, loaderId))
-    .limit(1);
-
-  if (!script) {
-    res.status(404).type("text/plain").send("-- Loader not found");
+  // ── Require a key ─────────────────────────────────────────────────────────
+  if (!key) {
+    res
+      .status(400)
+      .type("text/plain")
+      .send('error("[LuaBox] Missing key. Use the loader snippet from your dashboard.", 2)');
     return;
   }
 
-  if (script.status !== "active") {
-    res.status(403).type("text/plain").send('error("[LuaBox] This script is currently disabled.")');
-    return;
-  }
+  try {
+    // ── Validate script exists and is active ───────────────────────────────
+    const [script] = await db
+      .select()
+      .from(scriptsTable)
+      .where(eq(scriptsTable.loaderId, loaderId))
+      .limit(1);
 
-  // ── Personalized: validate the embedded key up front ─────────────────────
-  if (embeddedKey) {
+    if (!script) {
+      res.status(404).type("text/plain").send('error("[LuaBox] Loader not found.", 2)');
+      return;
+    }
+
+    if (script.status !== "active") {
+      res.status(403).type("text/plain").send('error("[LuaBox] This script is currently disabled.", 2)');
+      return;
+    }
+
+    if (!script.obfuscatedContent) {
+      res.status(503).type("text/plain").send('error("[LuaBox] Script content not available.", 2)');
+      return;
+    }
+
+    // ── Validate key ───────────────────────────────────────────────────────
     const [license] = await db
-      .select({ id: licensesTable.id, status: licensesTable.status, expiresAt: licensesTable.expiresAt })
+      .select()
       .from(licensesTable)
-      .where(and(eq(licensesTable.key, embeddedKey), eq(licensesTable.scriptId, script.id)))
+      .where(and(eq(licensesTable.key, key), eq(licensesTable.scriptId, script.id)))
       .limit(1);
 
     if (!license || license.status !== "active") {
@@ -99,14 +83,13 @@ router.get("/public/loaders/:loaderId/lua", async (req, res): Promise<void> => {
       res.status(403).type("text/plain").send('error("[LuaBox] Key has expired.", 2)');
       return;
     }
+
+    // ── Valid — return obfuscated Lua source ───────────────────────────────
+    res.type("text/plain").send(script.obfuscatedContent);
+  } catch (err) {
+    logger.error({ err }, "Loader lua error");
+    res.status(500).type("text/plain").send('error("[LuaBox] Internal server error.", 2)');
   }
-
-  // ── Return bootstrap Lua ──────────────────────────────────────────────────
-  const baseUrl = getBaseUrl(req);
-  const executeUrl = `${baseUrl}/api/public/loaders/${loaderId}/execute`;
-  const lua = buildBootstrapLua(executeUrl, embeddedKey);
-
-  res.type("text/plain").send(lua);
 });
 
 /**

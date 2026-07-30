@@ -43,10 +43,12 @@ export function Scripts() {
   const [isDragging, setIsDragging] = React.useState(false)
   const [copiedId, setCopiedId] = React.useState<number | null>(null)
 
-  function copyLoaderUrl(script: { id: number; loaderId?: string | null }) {
+  function copyLoaderSnippet(script: { id: number; loaderId?: string | null }, key?: string | null) {
     if (!script.loaderId) return
     const url = `${window.location.origin}/api/public/loaders/${script.loaderId}/lua`
-    navigator.clipboard.writeText(url).then(() => {
+    const k = key ?? "YOUR_KEY_HERE"
+    const snippet = `script_key="${k}";\n\nloadstring(game:HttpGet("${url}?key=${k}"))()`
+    navigator.clipboard.writeText(snippet).then(() => {
       setCopiedId(script.id)
       setTimeout(() => setCopiedId(null), 2000)
     })
@@ -266,7 +268,7 @@ export function Scripts() {
                 <TableHead className="w-16">ID</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Version</TableHead>
-                <TableHead>Loader URL</TableHead>
+                <TableHead>Loader Snippet</TableHead>
                 <TableHead>Code</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
@@ -287,11 +289,11 @@ export function Scripts() {
                     {script.loaderId ? (
                       <div className="flex items-center gap-1.5 max-w-[220px]">
                         <span className="truncate font-mono text-xs text-muted-foreground select-all">
-                          …/loaders/{script.loaderId}/lua
+                          script_key="…"; loadstring(…/{script.loaderId}/lua?key=…)()
                         </span>
                         <button
-                          onClick={() => copyLoaderUrl(script)}
-                          title="Copy full loader URL"
+                          onClick={() => copyLoaderSnippet(script)}
+                          title="Copy loader snippet"
                           className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
                         >
                           {copiedId === script.id
