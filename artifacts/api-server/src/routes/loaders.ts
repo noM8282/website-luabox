@@ -33,7 +33,10 @@ export function buildLoaderSnippet(loaderUrl: string, key: string): string {
  */
 router.get("/public/loaders/:loaderId/lua", async (req, res): Promise<void> => {
   const { loaderId } = req.params;
-  const key = typeof req.query.key === "string" ? req.query.key.trim() : null;
+  // Accept both ?key= (new) and ?k= (legacy) so old links keep working
+  const key =
+    (typeof req.query.key === "string" ? req.query.key.trim() : null) ??
+    (typeof req.query.k === "string" ? req.query.k.trim() : null);
 
   // ── Require a key ─────────────────────────────────────────────────────────
   if (!key) {
