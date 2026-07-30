@@ -58069,7 +58069,7 @@ function obfuscateLua(code) {
     `  if _v<0 then _v=_v+256 end`,
     `  _s=_s..string.char(_v)`,
     `end`,
-    `local _f,_e=load(_s)`,
+    `local _f,_e=loadstring(_s)`,
     `if _f then return _f() else error(_e) end`
   ];
   return lines.join("\n");
